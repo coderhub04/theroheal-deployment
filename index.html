@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Deployment Hook</title>
+	<!-- Tailwind CSS via CDN -->
+	<script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+	<style>
+		.btn-loading {
+			position: relative;
+			pointer-events: none;
+		}
+
+		.btn-loading::after {
+			content: "";
+			position: absolute;
+			width: 1rem;
+			height: 1rem;
+			border-radius: 50%;
+			border: 2px solid transparent;
+			border-top-color: currentColor;
+			right: 0.75rem;
+			animation: spin 0.6s linear infinite;
+		}
+
+		@keyframes spin {
+			to {
+				transform: rotate(360deg);
+			}
+		}
+
+		.tab-active {
+			border-bottom: 2px solid #3b82f6;
+			color: #1e40af;
+			font-weight: 600;
+		}
+
+		.tab-content {
+			display: none;
+		}
+
+		.tab-content.active {
+			display: block;
+		}
+	</style>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+	<div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+		<h1 class="text-2xl font-bold text-center mb-6 text-gray-800">Deployment Manager</h1>
+
+		<!-- Tabs -->
+		<div class="flex border-b mb-6">
+			<button id="tab-backend" class="tab-btn tab-active px-4 py-2 flex-1 text-center transition-colors duration-200">Backend</button>
+			<button id="tab-website" class="tab-btn px-4 py-2 flex-1 text-center transition-colors duration-200">Website</button>
+			<button id="tab-dashboard" class="tab-btn px-4 py-2 flex-1 text-center transition-colors duration-200">Dashboard</button>
+		</div>
+
+		<!-- Backend Tab Content -->
+		<div id="content-backend" class="tab-content active space-y-4">
+			<div id="backend-preview-container" class="flex flex-col">
+				<button id="backend-preview-btn"
+					class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-md transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+					Deploy Backend to Preview
+				</button>
+				<div id="backend-preview-status" class="mt-2 text-sm hidden"></div>
+			</div>
+
+			<div id="backend-production-container" class="flex flex-col">
+				<button id="backend-production-btn"
+					class="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-md transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-opacity-50">
+					Deploy Backend to Production
+				</button>
+				<div id="backend-production-status" class="mt-2 text-sm hidden"></div>
+			</div>
+		</div>
+
+		<!-- Website Tab Content -->
+		<div id="content-website" class="tab-content space-y-4">
+			<div id="website-preview-container" class="flex flex-col">
+				<button id="website-preview-btn"
+					class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-md transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+					Deploy Website to Preview
+				</button>
+				<div id="website-preview-status" class="mt-2 text-sm hidden"></div>
+			</div>
+
+			<div id="website-production-container" class="flex flex-col">
+				<button id="website-production-btn"
+					class="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-md transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-opacity-50">
+					Deploy Website to Production
+				</button>
+				<div id="website-production-status" class="mt-2 text-sm hidden"></div>
+			</div>
+		</div>
+
+		<!-- Dashboard Tab Content -->
+		<div id="content-dashboard" class="tab-content space-y-4">
+			<div id="dashboard-preview-container" class="flex flex-col">
+				<button id="dashboard-preview-btn"
+					class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-md transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+					Deploy Dashboard to Preview
+				</button>
+				<div id="dashboard-preview-status" class="mt-2 text-sm hidden"></div>
+			</div>
+
+			<div id="dashboard-production-container" class="flex flex-col">
+				<button id="dashboard-production-btn"
+					class="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-md transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-opacity-50">
+					Deploy Dashboard to Production
+				</button>
+				<div id="dashboard-production-status" class="mt-2 text-sm hidden"></div>
+			</div>
+		</div>
+
+		<div id="response-container" class="mt-6 p-4 bg-gray-50 rounded-md hidden">
+			<h2 class="font-semibold text-gray-700 mb-2">Response:</h2>
+			<pre id="response-text" class="text-sm bg-gray-100 p-3 rounded overflow-x-auto"></pre>
+		</div>
+	</div>
+
+	<script>
+		document.addEventListener('DOMContentLoaded', () => {
+			// Tab switching functionality
+			const tabs = document.querySelectorAll('.tab-btn');
+			const tabContents = document.querySelectorAll('.tab-content');
+
+			tabs.forEach(tab => {
+				tab.addEventListener('click', () => {
+					// Remove active class from all tabs and contents
+					tabs.forEach(t => t.classList.remove('tab-active'));
+					tabContents.forEach(content => content.classList.remove('active'));
+
+					// Add active class to current tab and content
+					tab.classList.add('tab-active');
+					const tabId = tab.id.split('-')[1]; // Get the tab identifier (backend, website, dashboard)
+					document.getElementById(`content-${tabId}`).classList.add('active');
+				});
+			});
+
+			// Response container elements
+			const responseContainer = document.getElementById('response-container');
+			const responseText = document.getElementById('response-text');
+
+			// API URLs for different services
+			const apiUrls = {
+				backend: {
+					preview: 'https://api.vercel.com/v1/integrations/deploy/prj_MnJlkkL3k5uqczejtPPQPjNRqAl3/UfjpmtoMY5',
+					production: 'https://api.vercel.com/v1/integrations/deploy/prj_MnJlkkL3k5uqczejtPPQPjNRqAl3/7OLeBHNae2'
+				},
+				website: {
+					preview: 'https://api.vercel.com/v1/integrations/deploy/prj_NnKlkkL3k5uqczejtPPQPjNRqAl4/XfjpmtoMY6',
+					production: 'https://api.vercel.com/v1/integrations/deploy/prj_NnKlkkL3k5uqczejtPPQPjNRqAl4/8OLeBHNae3'
+				},
+				dashboard: {
+					preview: 'https://api.vercel.com/v1/integrations/deploy/prj_PpLlkkL3k5uqczejtPPQPjNRqAl5/YfjpmtoMY7',
+					production: 'https://api.vercel.com/v1/integrations/deploy/prj_PpLlkkL3k5uqczejtPPQPjNRqAl5/9OLeBHNae4'
+				}
+			};
+
+			// Function to handle deployment API calls
+			async function handleDeployment(service, deploymentType, button, statusElement) {
+				// Set button to loading state
+				button.classList.add('btn-loading');
+				button.disabled = true;
+
+				// Show status
+				statusElement.textContent = `Initiating ${service} ${deploymentType} deployment...`;
+				statusElement.classList.remove('hidden', 'text-red-500', 'text-green-500');
+				statusElement.classList.add('text-blue-500');
+
+				try {
+					const apiUrl = apiUrls[service][deploymentType];
+
+					// Make the API request
+					const response = await fetch(apiUrl, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+						},
+						body: JSON.stringify({
+							timestamp: new Date().toISOString(),
+							service: service,
+							environment: deploymentType
+						})
+					});
+
+					// Parse the response
+					const data = await response.json();
+
+					// Display the response
+					responseContainer.classList.remove('hidden');
+					responseText.textContent = JSON.stringify(data, null, 2);
+
+					// Update status
+					statusElement.textContent = `${service.charAt(0).toUpperCase() + service.slice(1)} ${deploymentType} deployment successful!`;
+					statusElement.classList.remove('text-blue-500');
+					statusElement.classList.add('text-green-500');
+
+				} catch (error) {
+					console.error(`Error during ${service} ${deploymentType} deployment:`, error);
+
+					// Display error
+					responseContainer.classList.remove('hidden');
+					responseText.textContent = `Error: ${error.message}`;
+
+					// Update status
+					statusElement.textContent = `${service.charAt(0).toUpperCase() + service.slice(1)} ${deploymentType} deployment failed. See details below.`;
+					statusElement.classList.remove('text-blue-500');
+					statusElement.classList.add('text-red-500');
+				} finally {
+					// Reset button state
+					button.classList.remove('btn-loading');
+					button.disabled = false;
+				}
+			}
+
+			// Event listeners for Backend buttons
+			document.getElementById('backend-preview-btn').addEventListener('click', () => {
+				handleDeployment('backend', 'preview', 
+					document.getElementById('backend-preview-btn'), 
+					document.getElementById('backend-preview-status'));
+			});
+
+			document.getElementById('backend-production-btn').addEventListener('click', () => {
+				handleDeployment('backend', 'production', 
+					document.getElementById('backend-production-btn'), 
+					document.getElementById('backend-production-status'));
+			});
+
+			// Event listeners for Website buttons
+			document.getElementById('website-preview-btn').addEventListener('click', () => {
+				handleDeployment('website', 'preview', 
+					document.getElementById('website-preview-btn'), 
+					document.getElementById('website-preview-status'));
+			});
+
+			document.getElementById('website-production-btn').addEventListener('click', () => {
+				handleDeployment('website', 'production', 
+					document.getElementById('website-production-btn'), 
+					document.getElementById('website-production-status'));
+			});
+
+			// Event listeners for Dashboard buttons
+			document.getElementById('dashboard-preview-btn').addEventListener('click', () => {
+				handleDeployment('dashboard', 'preview', 
+					document.getElementById('dashboard-preview-btn'), 
+					document.getElementById('dashboard-preview-status'));
+			});
+
+			document.getElementById('dashboard-production-btn').addEventListener('click', () => {
+				handleDeployment('dashboard', 'production', 
+					document.getElementById('dashboard-production-btn'), 
+					document.getElementById('dashboard-production-status'));
+			});
+		});
+	</script>
+</body>
+
+</html>
